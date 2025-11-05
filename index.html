@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Talha - Crossy Road Game Clone</title>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width" />
+        <link rel="stylesheet" href="style.css" />
+        <link rel="icon" href="https://i.ibb.co/M6KTWnf/pic.jpg" />
+    </head>
+    <body>
+        <div class="score" id="score">
+            <div>Счет:</div>
+            <div id="counter">0</div>
+        </div>
+        <button id="restartButton">Заново</button>
+
+        <div id="start">
+            <div>
+                <h1>Crossy Road</h1>
+                <div class="character-select" id="characterSelect">
+                    <button class="character-option selected" data-character="giraffe" title="Жираф">
+                        <img src="https://twemoji.maxcdn.com/v/latest/svg/1f992.svg" alt="giraffe" />
+                    </button>
+                    <button class="character-option" data-character="lion" title="Лев">
+                        <img src="https://twemoji.maxcdn.com/v/latest/svg/1f981.svg" alt="lion" />
+                    </button>
+                    <button class="character-option" data-character="zebra" title="Зебра">
+                        <img src="https://twemoji.maxcdn.com/v/latest/svg/1f993.svg" alt="zebra" />
+                    </button>
+                    <button class="character-option" data-character="hippo" title="Бегемот">
+                        <img src="https://twemoji.maxcdn.com/v/latest/svg/1f99b.svg" alt="hippo" />
+                    </button>
+                </div>
+                <button id="startButton">Старт</button>
+            </div>
+        </div>
+
+        <div id="controlls">
+            <div>
+                <button id="forward">
+                    <svg width="30" height="30" viewBox="0 0 10 10">
+                        <g transform="rotate(0, 5,5)">
+                            <path d="M5,4 L7,6 L3,6 L5,4" />
+                        </g>
+                    </svg>
+                </button>
+                <button id="left">
+                    <svg width="30" height="30" viewBox="0 0 10 10">
+                        <g transform="rotate(-90, 5,5)">
+                            <path d="M5,4 L7,6 L3,6 L5,4" />
+                        </g>
+                    </svg>
+                </button>
+                <button id="backward">
+                    <svg width="30" height="30" viewBox="0 0 10 10">
+                        <g transform="rotate(180, 5,5)">
+                            <path d="M5,4 L7,6 L3,6 L5,4" />
+                        </g>
+                    </svg>
+                </button>
+                <button id="right">
+                    <svg width="30" height="30" viewBox="0 0 10 10">
+                        <g transform="rotate(90, 5,5)">
+                            <path d="M5,4 L7,6 L3,6 L5,4" />
+                        </g>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="end">
+            <button id="retry">Заново</button>
+            <div id="lastScore"></div>
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/99/three.min.js"></script>
+        <script src="script.js"></script>
+    </body>
+</html>
