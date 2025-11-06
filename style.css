@@ -145,3 +145,9 @@ button {
 #controlls button:first-of-type {
   grid-column: 1/-1;
 }
+
+@media (max-width: 768px) {
+  body {
+    font-size: 1.5em;
+  }
+}
