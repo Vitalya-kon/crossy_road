@@ -109,6 +109,7 @@ button {
   align-items: center;
   justify-content: center;
   visibility: hidden;
+  background-color: rgba(0, 0, 0, 0.7);
 }
 
 #end button {
