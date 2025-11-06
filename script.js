@@ -5,9 +5,14 @@ const startDOM = document.getElementById("start");
 const restartButton = document.getElementById("restartButton");
 const lastScoreDOM = document.getElementById("lastScore");
 const characterSelectDOM = document.getElementById("characterSelect");
+const soundToggleButton = document.getElementById("soundToggle");
+const playIcon = document.getElementById("playIcon");
+const pauseIcon = document.getElementById("pauseIcon");
 
 let gameStarted = false;
 let selectedCharacter = "giraffe"; // default
+let gameOverSoundPlayed = false; // Флаг для отслеживания воспроизведения звука окончания игры
+let soundEnabled = true; // Флаг для управления звуком
 
 // Звук прыжка
 const jumpSound = new Audio("./assets/sounds/jump.wav");
@@ -17,6 +22,52 @@ jumpSound.volume = 0.5; // Установка громкости (0.0 - 1.0)
 const backgroundMusic = new Audio("./assets/sounds/sound.wav");
 backgroundMusic.loop = true; // Циклическое воспроизведение
 backgroundMusic.volume = 0.3; // Установка громкости фоновой музыки
+
+// Флаг для отслеживания, была ли запущена музыка
+let musicStarted = false;
+
+// Функция для запуска фоновой музыки
+function startBackgroundMusic() {
+  if (soundEnabled && backgroundMusic.paused) {
+    backgroundMusic.play().then(() => {
+      musicStarted = true;
+    }).catch((error) => {
+      console.log("Не удалось воспроизвести фоновую музыку:", error);
+    });
+  }
+}
+
+// Функция для включения/выключения всех звуков
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  
+  if (soundEnabled) {
+    // Включаем звук - показываем иконку паузы
+    playIcon.style.display = "none";
+    pauseIcon.style.display = "block";
+    
+    // Возобновляем фоновую музыку и звук трафика, если игра начата
+    startBackgroundMusic();
+    if (gameStarted) {
+      trafficSound.play().catch((error) => {
+        console.log("Не удалось возобновить звук трафика:", error);
+      });
+    }
+  } else {
+    // Выключаем звук - показываем иконку воспроизведения
+    playIcon.style.display = "block";
+    pauseIcon.style.display = "none";
+    
+    // Останавливаем все звуки
+    backgroundMusic.pause();
+    trafficSound.pause();
+    jumpSound.pause();
+    gameOverSound.pause();
+  }
+}
+
+// Обработчик для кнопки переключения звука
+soundToggleButton.addEventListener("click", toggleSound);
 
 // Звук трафика
 const trafficSound = new Audio("./assets/sounds/traffic1.wav");
@@ -629,12 +680,18 @@ document.querySelector("#retry").addEventListener("click", () => {
   scoreDOM.style.visibility = "hidden";
   if (restartButton) restartButton.style.display = "none";
   if (lastScoreDOM) lastScoreDOM.textContent = "";
-  // Остановка фоновой музыки
-  backgroundMusic.pause();
-  backgroundMusic.currentTime = 0;
+  // Сброс флага звука окончания игры
+  gameOverSoundPlayed = false;
+  // Остановка звука окончания игры
+  gameOverSound.pause();
+  gameOverSound.currentTime = 0;
   // Остановка звука трафика
   trafficSound.pause();
   trafficSound.currentTime = 0;
+  // Фоновая музыка продолжает играть на стартовом экране
+  // Сбрасываем флаг, чтобы музыка могла запуститься снова
+  musicStarted = false;
+  startBackgroundMusic();
 });
 
 document.getElementById("startButton").addEventListener("click", () => {
@@ -643,14 +700,19 @@ document.getElementById("startButton").addEventListener("click", () => {
   scoreDOM.style.visibility = "visible";
   counterDOM.innerHTML = 0;
   if (restartButton) restartButton.style.display = "block";
-  // Запуск фоновой музыки
-  backgroundMusic.play().catch((error) => {
-    console.log("Не удалось воспроизвести фоновую музыку:", error);
-  });
+  // Сброс флага звука окончания игры для новой игры
+  gameOverSoundPlayed = false;
+  // Остановка звука окончания игры (если он еще играет)
+  gameOverSound.pause();
+  gameOverSound.currentTime = 0;
+  // Фоновая музыка уже должна играть, но убеждаемся
+  startBackgroundMusic();
   // Запуск звука трафика
-  trafficSound.play().catch((error) => {
-    console.log("Не удалось воспроизвести звук трафика:", error);
-  });
+  if (soundEnabled) {
+    trafficSound.play().catch((error) => {
+      console.log("Не удалось воспроизвести звук трафика:", error);
+    });
+  }
 });
 
 if (restartButton) {
@@ -663,9 +725,18 @@ if (restartButton) {
     scoreDOM.style.visibility = "hidden";
     restartButton.style.display = "none";
     if (lastScoreDOM) lastScoreDOM.textContent = "";
-    // Остановка фоновой музыки
-    backgroundMusic.pause();
-    backgroundMusic.currentTime = 0;
+    // Сброс флага звука окончания игры
+    gameOverSoundPlayed = false;
+    // Остановка звука окончания игры
+    gameOverSound.pause();
+    gameOverSound.currentTime = 0;
+    // Остановка звука трафика
+    trafficSound.pause();
+    trafficSound.currentTime = 0;
+    // Фоновая музыка продолжает играть на стартовом экране
+    // Сбрасываем флаг, чтобы музыка могла запуститься снова
+    musicStarted = false;
+    startBackgroundMusic();
   });
 }
 
@@ -785,11 +856,13 @@ function move(direction) {
   }
   moves.push(direction);
   // Воспроизведение звука прыжка
-  jumpSound.currentTime = 0; // Сброс на начало для возможности повторного воспроизведения
-  jumpSound.play().catch((error) => {
-    // Игнорируем ошибки автовоспроизведения (браузер может блокировать)
-    console.log("Не удалось воспроизвести звук:", error);
-  });
+  if (soundEnabled) {
+    jumpSound.currentTime = 0; // Сброс на начало для возможности повторного воспроизведения
+    jumpSound.play().catch((error) => {
+      // Игнорируем ошибки автовоспроизведения (браузер может блокировать)
+      console.log("Не удалось воспроизвести звук:", error);
+    });
+  }
 }
 
 function animate(timestamp) {
@@ -932,11 +1005,15 @@ function animate(timestamp) {
         stepStartTimestamp = null;
         startMoving = false;
         if (restartButton) restartButton.style.display = "none";
-        // Воспроизведение звука окончания игры
-        gameOverSound.currentTime = 0; // Сброс на начало
-        gameOverSound.play().catch((error) => {
-          console.log("Не удалось воспроизвести звук окончания игры:", error);
-        });
+        // Воспроизведение звука окончания игры (только один раз)
+        if (!gameOverSoundPlayed && soundEnabled) {
+          gameOverSound.currentTime = 0; // Сброс на начало
+          gameOverSound.play().catch((error) => {
+            console.log("Не удалось воспроизвести звук окончания игры:", error);
+          });
+          gameOverSoundPlayed = true; // Отмечаем, что звук уже воспроизведен
+        }
+        
         // Остановка фоновой музыки при столкновении
         backgroundMusic.pause();
         backgroundMusic.currentTime = 0;
@@ -950,3 +1027,21 @@ function animate(timestamp) {
 }
 
 requestAnimationFrame(animate);
+
+// Попытка запуска фоновой музыки на стартовом экране
+// (может быть заблокирована браузером без взаимодействия пользователя)
+startBackgroundMusic();
+
+// Запуск музыки при первом взаимодействии пользователя
+document.addEventListener("click", () => {
+  startBackgroundMusic();
+}, { once: true });
+
+document.addEventListener("keydown", () => {
+  startBackgroundMusic();
+}, { once: true });
+
+// Также запускаем музыку при взаимодействии с кнопками
+document.addEventListener("mousedown", () => {
+  startBackgroundMusic();
+}, { once: true });
