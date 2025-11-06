@@ -9,6 +9,24 @@ const characterSelectDOM = document.getElementById("characterSelect");
 let gameStarted = false;
 let selectedCharacter = "giraffe"; // default
 
+// Звук прыжка
+const jumpSound = new Audio("./assets/sounds/jump.wav");
+jumpSound.volume = 0.5; // Установка громкости (0.0 - 1.0)
+
+// Фоновая музыка
+const backgroundMusic = new Audio("./assets/sounds/sound.wav");
+backgroundMusic.loop = true; // Циклическое воспроизведение
+backgroundMusic.volume = 0.3; // Установка громкости фоновой музыки
+
+// Звук трафика
+const trafficSound = new Audio("./assets/sounds/traffic1.wav");
+trafficSound.loop = true; // Циклическое воспроизведение
+trafficSound.volume = 0.4; // Установка громкости звука трафика
+
+// Звук окончания игры
+const gameOverSound = new Audio("./assets/sounds/game_over1.wav");
+gameOverSound.volume = 0.6; // Установка громкости звука окончания игры
+
 const scene = new THREE.Scene();
 
 const distance = 500;
@@ -611,6 +629,12 @@ document.querySelector("#retry").addEventListener("click", () => {
   scoreDOM.style.visibility = "hidden";
   if (restartButton) restartButton.style.display = "none";
   if (lastScoreDOM) lastScoreDOM.textContent = "";
+  // Остановка фоновой музыки
+  backgroundMusic.pause();
+  backgroundMusic.currentTime = 0;
+  // Остановка звука трафика
+  trafficSound.pause();
+  trafficSound.currentTime = 0;
 });
 
 document.getElementById("startButton").addEventListener("click", () => {
@@ -619,6 +643,14 @@ document.getElementById("startButton").addEventListener("click", () => {
   scoreDOM.style.visibility = "visible";
   counterDOM.innerHTML = 0;
   if (restartButton) restartButton.style.display = "block";
+  // Запуск фоновой музыки
+  backgroundMusic.play().catch((error) => {
+    console.log("Не удалось воспроизвести фоновую музыку:", error);
+  });
+  // Запуск звука трафика
+  trafficSound.play().catch((error) => {
+    console.log("Не удалось воспроизвести звук трафика:", error);
+  });
 });
 
 if (restartButton) {
@@ -631,6 +663,9 @@ if (restartButton) {
     scoreDOM.style.visibility = "hidden";
     restartButton.style.display = "none";
     if (lastScoreDOM) lastScoreDOM.textContent = "";
+    // Остановка фоновой музыки
+    backgroundMusic.pause();
+    backgroundMusic.currentTime = 0;
   });
 }
 
@@ -749,6 +784,12 @@ function move(direction) {
     if (!stepStartTimestamp) startMoving = true;
   }
   moves.push(direction);
+  // Воспроизведение звука прыжка
+  jumpSound.currentTime = 0; // Сброс на начало для возможности повторного воспроизведения
+  jumpSound.play().catch((error) => {
+    // Игнорируем ошибки автовоспроизведения (браузер может блокировать)
+    console.log("Не удалось воспроизвести звук:", error);
+  });
 }
 
 function animate(timestamp) {
@@ -891,6 +932,17 @@ function animate(timestamp) {
         stepStartTimestamp = null;
         startMoving = false;
         if (restartButton) restartButton.style.display = "none";
+        // Воспроизведение звука окончания игры
+        gameOverSound.currentTime = 0; // Сброс на начало
+        gameOverSound.play().catch((error) => {
+          console.log("Не удалось воспроизвести звук окончания игры:", error);
+        });
+        // Остановка фоновой музыки при столкновении
+        backgroundMusic.pause();
+        backgroundMusic.currentTime = 0;
+        // Остановка звука трафика при столкновении
+        trafficSound.pause();
+        trafficSound.currentTime = 0;
       }
     });
   }
