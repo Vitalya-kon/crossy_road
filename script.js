@@ -249,6 +249,24 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+// Обработчик изменения размера окна для адаптации игрового поля
+function handleResize() {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  
+  // Обновляем размер рендерера
+  renderer.setSize(width, height);
+  
+  // Обновляем параметры ортографической камеры
+  camera.left = width / -2;
+  camera.right = width / 2;
+  camera.top = height / 2;
+  camera.bottom = height / -2;
+  camera.updateProjectionMatrix();
+}
+
+window.addEventListener('resize', handleResize);
+
 // Предотвращение контекстного меню и выделения текста на сенсорных устройствах
 const canvas = renderer.domElement;
 

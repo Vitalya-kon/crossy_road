@@ -1,7 +1,14 @@
 @import url("https://fonts.googleapis.com/css?family=Press+Start+2P");
 
-body {
+html, body {
   margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
   font-family: "Press Start 2P", cursive;
   font-size: 2em;
   color: white;
@@ -50,10 +57,8 @@ button {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  min-width: 100%;
-  min-height: 100%;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -109,8 +114,10 @@ button {
 
 #end {
   position: absolute;
-  min-width: 100%;
-  min-height: 100%;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -118,6 +125,7 @@ button {
   justify-content: center;
   visibility: hidden;
   background-color: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
 }
 
 #end button {
@@ -129,11 +137,15 @@ button {
 
 #controlls {
   position: absolute;
-  min-width: 100%;
-  min-height: 100%;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  pointer-events: none;
+  z-index: 1100;
 }
 
 #controlls div {
@@ -149,6 +161,7 @@ button {
   width: 100%;
   background-color: white;
   border: 1px solid lightgray;
+  pointer-events: auto;
 }
 
 #controlls button:first-of-type {
@@ -183,6 +196,9 @@ button {
 
 /* Предотвращение выделения текста на canvas */
 canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
