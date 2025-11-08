@@ -252,7 +252,7 @@ document.body.appendChild(renderer.domElement);
 // Обработчик изменения размера окна для адаптации игрового поля
 function handleResize() {
   const width = window.innerWidth;
-  const height = window.innerHeight;
+  const height = window.innerHeight + 50;
   
   // Обновляем размер рендерера
   renderer.setSize(width, height);

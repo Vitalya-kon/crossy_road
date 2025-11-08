@@ -51,6 +51,10 @@ button {
   align-items: center;
   justify-content: center;
   gap: 10px;
+  padding: 11px;
+  background: #00000080;
+  font-size: 20px;
+  box-shadow: 3px 5px 0px 0px rgba(0, 0, 0, 0.75);
 }
 
 #start {
@@ -136,16 +140,18 @@ button {
 }
 
 #controlls {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 1100;
+  position: fixed;
+    /* top: 0; */
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 20px;
+    width: fit-content;
+    height: fit-content;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1100;
 }
 
 #controlls div {
@@ -154,7 +160,6 @@ button {
   grid-template-rows: auto auto;
   grid-column-gap: 10px;
   grid-row-gap: 10px;
-  margin-bottom: 20px;
 }
 
 #controlls button {
