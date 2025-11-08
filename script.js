@@ -227,6 +227,45 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+// Предотвращение контекстного меню и выделения текста на сенсорных устройствах
+const canvas = renderer.domElement;
+
+// Предотвращение контекстного меню при длительном нажатии
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  return false;
+});
+
+// Предотвращение выделения текста
+canvas.addEventListener('selectstart', (e) => {
+  e.preventDefault();
+  return false;
+});
+
+// Предотвращение drag событий
+canvas.addEventListener('dragstart', (e) => {
+  e.preventDefault();
+  return false;
+});
+
+// Дополнительная защита для touch событий
+let touchStartTime = 0;
+canvas.addEventListener('touchstart', (e) => {
+  touchStartTime = Date.now();
+  // Разрешаем touch события, но предотвращаем стандартное поведение браузера
+  if (e.touches.length > 1) {
+    e.preventDefault(); // Предотвращаем зум при мультитаче
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+  // Предотвращаем контекстное меню только при длительном нажатии (более 500мс)
+  const touchDuration = Date.now() - touchStartTime;
+  if (touchDuration > 500) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
 function Texture(width, height, rects) {
   const canvas = document.createElement("canvas");
   canvas.width = width;
