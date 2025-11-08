@@ -1030,7 +1030,7 @@ requestAnimationFrame(animate);
 
 // Попытка запуска фоновой музыки на стартовом экране
 // (может быть заблокирована браузером без взаимодействия пользователя)
-startBackgroundMusic();
+//startBackgroundMusic();
 
 // Запуск музыки при первом взаимодействии пользователя
 document.addEventListener("click", () => {
@@ -1045,3 +1045,112 @@ document.addEventListener("keydown", () => {
 document.addEventListener("mousedown", () => {
   startBackgroundMusic();
 }, { once: true });
+
+// Флаги для отслеживания состояния звуков перед остановкой
+let wasBackgroundMusicPlaying = false;
+let wasTrafficSoundPlaying = false;
+
+// Функция для остановки всех звуков
+function pauseAllSounds() {
+  // Сохраняем состояние звуков перед остановкой
+  if (backgroundMusic && !backgroundMusic.paused) {
+    wasBackgroundMusicPlaying = true;
+    backgroundMusic.pause();
+  } else {
+    wasBackgroundMusicPlaying = false;
+  }
+  
+  if (trafficSound && !trafficSound.paused) {
+    wasTrafficSoundPlaying = true;
+    trafficSound.pause();
+  } else {
+    wasTrafficSoundPlaying = false;
+  }
+  
+  // Останавливаем короткие звуки
+  if (jumpSound && !jumpSound.paused) {
+    jumpSound.pause();
+    jumpSound.currentTime = 0;
+  }
+  if (gameOverSound && !gameOverSound.paused) {
+    gameOverSound.pause();
+    gameOverSound.currentTime = 0;
+  }
+}
+
+// Функция для полной остановки всех звуков (без сохранения состояния)
+function stopAllSounds() {
+  if (backgroundMusic) {
+    backgroundMusic.pause();
+    backgroundMusic.currentTime = 0;
+  }
+  if (trafficSound) {
+    trafficSound.pause();
+    trafficSound.currentTime = 0;
+  }
+  if (jumpSound) {
+    jumpSound.pause();
+    jumpSound.currentTime = 0;
+  }
+  if (gameOverSound) {
+    gameOverSound.pause();
+    gameOverSound.currentTime = 0;
+  }
+}
+
+// Функция для возобновления звуков
+function resumeAllSounds() {
+  // Возобновляем звуки только если они включены и были воспроизведены до паузы
+  if (soundEnabled) {
+    if (wasBackgroundMusicPlaying && backgroundMusic) {
+      backgroundMusic.play().catch(error => {
+        console.log("Не удалось возобновить фоновую музыку:", error);
+      });
+    }
+    
+    if (wasTrafficSoundPlaying && trafficSound && gameStarted) {
+      trafficSound.play().catch(error => {
+        console.log("Не удалось возобновить звук трафика:", error);
+      });
+    }
+  }
+}
+
+// Обработка переключения вкладок и сворачивания окна
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    // Страница скрыта (переключение вкладки, сворачивание окна)
+    pauseAllSounds();
+  } else {
+    // Страница снова видна
+    resumeAllSounds();
+  }
+});
+
+// Дополнительная обработка для случаев, когда visibilitychange не срабатывает
+window.addEventListener("blur", () => {
+  pauseAllSounds();
+});
+
+window.addEventListener("focus", () => {
+  // Используем небольшую задержку для надежности
+  setTimeout(() => {
+    if (!document.hidden) {
+      resumeAllSounds();
+    }
+  }, 100);
+});
+
+// Остановка всех звуков при закрытии браузера/вкладки
+window.addEventListener("beforeunload", () => {
+  stopAllSounds();
+});
+
+window.addEventListener("unload", () => {
+  stopAllSounds();
+});
+
+// Остановка звуков при потере фокуса страницы (дополнительная защита)
+window.addEventListener("pagehide", () => {
+  stopAllSounds();
+});
