@@ -1050,44 +1050,28 @@ document.addEventListener("mousedown", () => {
 let wasBackgroundMusicPlaying = false;
 let wasTrafficSoundPlaying = false;
 
-// Функция для остановки всех звуков
-function pauseAllSounds() {
-  // Сохраняем состояние звуков перед остановкой
-  if (backgroundMusic && !backgroundMusic.paused) {
-    wasBackgroundMusicPlaying = true;
-    backgroundMusic.pause();
-  } else {
-    wasBackgroundMusicPlaying = false;
-  }
+document.addEventListener("visibilitychange", () => {
+  console.log("Событие visibilitychange сработало, hidden:", document.hidden, "visibilityState:", document.visibilityState);
   
-  if (trafficSound && !trafficSound.paused) {
-    wasTrafficSoundPlaying = true;
-    trafficSound.pause();
-  } else {
-    wasTrafficSoundPlaying = false;
+  if (document.hidden || document.visibilityState === "hidden") {
+    // Ставим все звуки на паузу при сворачивании/переключении вкладки
+    console.log("Ставим все звуки на паузу при сворачивании/переключении вкладки");
+    
+    pauseAllSounds();
+  } else if (document.visibilityState === "visible") {
+    // Возобновляем звуки при возврате на вкладку (если звук включен)
+    console.log("Возобновляем звуки при возврате на вкладку (если звук включен)");
+    if (soundEnabled) {
+      resumeAllSounds();
+    }
   }
-  
-  // Останавливаем короткие звуки
-  if (jumpSound && !jumpSound.paused) {
-    jumpSound.pause();
-    jumpSound.currentTime = 0;
-  }
-  if (gameOverSound && !gameOverSound.paused) {
-    gameOverSound.pause();
-    gameOverSound.currentTime = 0;
-  }
-}
+});
 
-// Функция для полной остановки всех звуков (без сохранения состояния)
-function stopAllSounds() {
-  if (backgroundMusic) {
-    backgroundMusic.pause();
-    backgroundMusic.currentTime = 0;
-  }
-  if (trafficSound) {
-    trafficSound.pause();
-    trafficSound.currentTime = 0;
-  }
+// Обновленные функции управления звуком
+function pauseAllSounds() {
+  // Принудительно останавливаем все звуки
+  if (backgroundMusic) backgroundMusic.pause();
+  if (trafficSound) trafficSound.pause();
   if (jumpSound) {
     jumpSound.pause();
     jumpSound.currentTime = 0;
@@ -1098,59 +1082,14 @@ function stopAllSounds() {
   }
 }
 
-// Функция для возобновления звуков
 function resumeAllSounds() {
-  // Возобновляем звуки только если они включены и были воспроизведены до паузы
-  if (soundEnabled) {
-    if (wasBackgroundMusicPlaying && backgroundMusic) {
-      backgroundMusic.play().catch(error => {
-        console.log("Не удалось возобновить фоновую музыку:", error);
-      });
-    }
-    
-    if (wasTrafficSoundPlaying && trafficSound && gameStarted) {
-      trafficSound.play().catch(error => {
-        console.log("Не удалось возобновить звук трафика:", error);
-      });
-    }
+  // Возобновляем фоновую музыку (если она была на паузе и звук включен)
+  if (soundEnabled && backgroundMusic.paused) {
+    backgroundMusic.play().catch(e => console.log("Ошибка воспроизведения музыки:", e));
+  }
+  
+  // Возобновляем звук трафика, если игра запущена (если он был на паузе и звук включен)
+  if (gameStarted && soundEnabled && trafficSound.paused) {
+    trafficSound.play().catch(e => console.log("Ошибка воспроизведения трафика:", e));
   }
 }
-
-// Обработка переключения вкладок и сворачивания окна
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    // Страница скрыта (переключение вкладки, сворачивание окна)
-    pauseAllSounds();
-  } else {
-    // Страница снова видна
-    resumeAllSounds();
-  }
-});
-
-// Дополнительная обработка для случаев, когда visibilitychange не срабатывает
-window.addEventListener("blur", () => {
-  pauseAllSounds();
-});
-
-window.addEventListener("focus", () => {
-  // Используем небольшую задержку для надежности
-  setTimeout(() => {
-    if (!document.hidden) {
-      resumeAllSounds();
-    }
-  }, 100);
-});
-
-// Остановка всех звуков при закрытии браузера/вкладки
-window.addEventListener("beforeunload", () => {
-  stopAllSounds();
-});
-
-window.addEventListener("unload", () => {
-  stopAllSounds();
-});
-
-// Остановка звуков при потере фокуса страницы (дополнительная защита)
-window.addEventListener("pagehide", () => {
-  stopAllSounds();
-});
