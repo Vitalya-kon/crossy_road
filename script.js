@@ -14,6 +14,28 @@ let selectedCharacter = "giraffe"; // default
 let gameOverSoundPlayed = false; // Флаг для отслеживания воспроизведения звука окончания игры
 let soundEnabled = true; // Флаг для управления звуком
 
+// Переменные для поддержки ТВ-пульта
+let isTVDevice = false;
+let currentCharacterIndex = 0; // Индекс текущего выбранного персонажа для навигации с пульта
+let yandexSDK = null;
+
+// Инициализация Яндекс Игр SDK
+if (typeof YaGames !== 'undefined') {
+  YaGames.init().then(ysdk => {
+    window.ysdk = ysdk;
+    ysdk.features.LoadingAPI?.ready()
+    const deviceInfo = ysdk.deviceInfo;
+    if (deviceInfo && deviceInfo.type === 'tv') {
+      isTVDevice = true;
+      console.log('Обнаружено ТВ-устройство, включена поддержка пульта');
+      // Добавляем класс для стилизации под ТВ
+      document.body.classList.add('tv-device');
+    }
+  }).catch(err => {
+    console.log('Ошибка инициализации Яндекс Игр SDK:', err);
+  });
+}
+
 // Звук прыжка
 const jumpSound = new Audio("./assets/sounds/jump.wav");
 jumpSound.volume = 0.5; // Установка громкости (0.0 - 1.0)
@@ -230,10 +252,20 @@ document.body.appendChild(renderer.domElement);
 // Предотвращение контекстного меню и выделения текста на сенсорных устройствах
 const canvas = renderer.domElement;
 
-// Предотвращение контекстного меню при длительном нажатии
+// Предотвращение контекстного меню при правом клике мыши (десктоп)
 canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
+  e.stopPropagation();
   return false;
+});
+
+// Дополнительная защита: блокировка правой кнопки мыши
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button === 2) { // Правая кнопка мыши
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  }
 });
 
 // Предотвращение выделения текста
@@ -719,6 +751,17 @@ document.querySelector("#retry").addEventListener("click", () => {
   scoreDOM.style.visibility = "hidden";
   if (restartButton) restartButton.style.display = "none";
   if (lastScoreDOM) lastScoreDOM.textContent = "";
+  // Сброс индекса персонажа для навигации с пульта
+  currentCharacterIndex = 0;
+  // Синхронизация индекса с выбранным персонажем
+  if (characterSelectDOM) {
+    const characterButtons = characterSelectDOM.querySelectorAll(".character-option");
+    characterButtons.forEach((el, index) => {
+      if (el.classList.contains("selected")) {
+        currentCharacterIndex = index;
+      }
+    });
+  }
   // Сброс флага звука окончания игры
   gameOverSoundPlayed = false;
   // Остановка звука окончания игры
@@ -764,6 +807,17 @@ if (restartButton) {
     scoreDOM.style.visibility = "hidden";
     restartButton.style.display = "none";
     if (lastScoreDOM) lastScoreDOM.textContent = "";
+    // Сброс индекса персонажа для навигации с пульта
+    currentCharacterIndex = 0;
+    // Синхронизация индекса с выбранным персонажем
+    if (characterSelectDOM) {
+      const characterButtons = characterSelectDOM.querySelectorAll(".character-option");
+      characterButtons.forEach((el, index) => {
+        if (el.classList.contains("selected")) {
+          currentCharacterIndex = index;
+        }
+      });
+    }
     // Сброс флага звука окончания игры
     gameOverSoundPlayed = false;
     // Остановка звука окончания игры
@@ -789,7 +843,12 @@ if (characterSelectDOM) {
     selectedCharacter = type;
     // update UI selected state
     const all = characterSelectDOM.querySelectorAll(".character-option");
-    all.forEach((el) => el.classList.remove("selected"));
+    all.forEach((el, index) => {
+      el.classList.remove("selected");
+      if (el === btn) {
+        currentCharacterIndex = index; // Синхронизируем индекс при клике
+      }
+    });
     btn.classList.add("selected");
     // swap player mesh in scene
     scene.remove(chicken);
@@ -797,6 +856,14 @@ if (characterSelectDOM) {
     chicken.position.set(0, 0, 0);
     scene.add(chicken);
     dirLight.target = chicken;
+  });
+  
+  // Инициализация индекса при загрузке страницы
+  const characterButtons = characterSelectDOM.querySelectorAll(".character-option");
+  characterButtons.forEach((el, index) => {
+    if (el.classList.contains("selected")) {
+      currentCharacterIndex = index;
+    }
   });
 }
 
@@ -820,19 +887,102 @@ document.getElementById("right").addEventListener("click", () => {
   if (gameStarted) move("right");
 });
 
+// Функция для навигации по меню выбора персонажа с помощью стрелок
+function navigateCharacterMenu(direction) {
+  if (!characterSelectDOM || gameStarted) return;
+  
+  const characterButtons = characterSelectDOM.querySelectorAll(".character-option");
+  if (characterButtons.length === 0) return;
+  
+  if (direction === "left") {
+    currentCharacterIndex = (currentCharacterIndex - 1 + characterButtons.length) % characterButtons.length;
+  } else if (direction === "right") {
+    currentCharacterIndex = (currentCharacterIndex + 1) % characterButtons.length;
+  }
+  
+  // Обновляем визуальное выделение
+  characterButtons.forEach((el, index) => {
+    el.classList.toggle("selected", index === currentCharacterIndex);
+  });
+  
+  // Обновляем выбранного персонажа
+  const selectedButton = characterButtons[currentCharacterIndex];
+  const type = selectedButton.getAttribute("data-character");
+  if (type) {
+    selectedCharacter = type;
+    // Обновляем модель персонажа в сцене
+    scene.remove(chicken);
+    chicken = new Chicken(selectedCharacter);
+    chicken.position.set(0, 0, 0);
+    scene.add(chicken);
+    dirLight.target = chicken;
+  }
+}
+
+// Обработчик клавиатуры для поддержки ТВ-пульта и обычной клавиатуры
 window.addEventListener("keydown", (event) => {
-  if (!gameStarted) return;
-  if (event.keyCode == "38") {
-    // up arrow
+  const key = event.key;
+  
+  // Обработка кнопки Back (Escape)
+  if (key === "Escape" || key === "Backspace") {
+    if (gameStarted) {
+      // Если игра запущена, можно добавить паузу или возврат в меню
+      // Пока просто игнорируем
+      return;
+    } else if (endDOM.style.visibility === "visible") {
+      // Если открыт экран окончания игры, возвращаемся в меню
+      event.preventDefault();
+      document.getElementById("retry").click();
+    }
+    return;
+  }
+  
+  // Обработка Enter на экране окончания игры
+  if (key === "Enter" && endDOM.style.visibility === "visible") {
+    event.preventDefault();
+    document.getElementById("retry").click();
+    return;
+  }
+  
+  // Если игра не запущена - обрабатываем меню
+  if (!gameStarted) {
+    // Обработка Enter на стартовом экране
+    if (key === "Enter") {
+      event.preventDefault();
+      const startButton = document.getElementById("startButton");
+      if (startButton && startDOM.style.visibility !== "hidden") {
+        startButton.click();
+      }
+      return;
+    }
+    
+    // Навигация по меню выбора персонажа стрелками
+    if (key === "ArrowLeft") {
+      event.preventDefault();
+      navigateCharacterMenu("left");
+      return;
+    } else if (key === "ArrowRight") {
+      event.preventDefault();
+      navigateCharacterMenu("right");
+      return;
+    }
+    
+    // Если игра не запущена, не обрабатываем другие клавиши
+    return;
+  }
+  
+  // Обработка управления во время игры
+  if (key === "ArrowUp" || key === "Up" || event.keyCode === 38) {
+    event.preventDefault();
     move("forward");
-  } else if (event.keyCode == "40") {
-    // down arrow
+  } else if (key === "ArrowDown" || key === "Down" || event.keyCode === 40) {
+    event.preventDefault();
     move("backward");
-  } else if (event.keyCode == "37") {
-    // left arrow
+  } else if (key === "ArrowLeft" || key === "Left" || event.keyCode === 37) {
+    event.preventDefault();
     move("left");
-  } else if (event.keyCode == "39") {
-    // right arrow
+  } else if (key === "ArrowRight" || key === "Right" || event.keyCode === 39) {
+    event.preventDefault();
     move("right");
   }
 });
