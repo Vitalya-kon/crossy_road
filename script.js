@@ -789,15 +789,22 @@ function handleResize() {
   // Обновляем размер рендерера
   renderer.setSize(width, height);
   
-  // Обновляем параметры ортографической камеры
-  camera.left = width / -2;
-  camera.right = width / 2;
-  camera.top = height / 2;
-  camera.bottom = height / -2;
+  // Определяем коэффициент масштабирования для мобильных устройств
+  // На устройствах с шириной до 1024px увеличиваем поле зрения, чтобы показать больше контента
+  const isMobile = width <= 1024;
+  const scaleFactor = isMobile ? 1.4 : 1.0; // Увеличиваем поле зрения на 40% на мобильных
+  
+  // Обновляем параметры ортографической камеры с учетом масштабирования
+  camera.left = (width / -2) * scaleFactor;
+  camera.right = (width / 2) * scaleFactor;
+  camera.top = (height / 2) * scaleFactor;
+  camera.bottom = (height / -2) * scaleFactor;
   camera.updateProjectionMatrix();
 }
 
 window.addEventListener('resize', handleResize);
+// Вызываем handleResize при инициализации для правильного применения масштабирования
+handleResize();
 
 // Предотвращение контекстного меню и выделения текста на сенсорных устройствах
 const canvas = renderer.domElement;

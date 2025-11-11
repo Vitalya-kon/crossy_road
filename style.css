@@ -235,14 +235,10 @@ audio {
   }
 }
 @media (max-height: 520px) {
-  #start {
-    align-items: flex-start;
-  }
   body {
     font-size: 1em;
   }
   #end{
-    justify-content: flex-start;
     padding-top: 5vh;
   }
   #end button, #start button  {
