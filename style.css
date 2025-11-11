@@ -234,3 +234,27 @@ audio {
     font-size: 1.5em;
   }
 }
+@media (max-height: 520px) {
+  #start {
+    align-items: flex-start;
+  }
+  body {
+    font-size: 1em;
+  }
+  #end{
+    justify-content: flex-start;
+    padding-top: 5vh;
+  }
+  #end button, #start button  {
+    padding: 15px 45px 15px 45px;
+  }
+  #start .character-option {
+    width: 60px;
+    height: 60px;
+  }
+}
+@media (max-width: 420px) {
+  body {
+    font-size: 1em;
+  }
+}
