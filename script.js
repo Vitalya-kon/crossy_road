@@ -10,6 +10,7 @@ const playIcon = document.getElementById("playIcon");
 const pauseIcon = document.getElementById("pauseIcon");
 const startButtonDOM = document.getElementById("startButton");
 const retryButton = document.getElementById("retry");
+const controllsDOM = document.getElementById("controlls");
 const scoreLabelDOM = scoreDOM ? scoreDOM.firstElementChild : null;
 
 const DEFAULT_LANGUAGE = "ru";
@@ -1303,6 +1304,8 @@ if (retryButton) {
     startDOM.style.visibility = "visible";
     scoreDOM.style.visibility = "hidden";
     if (restartButton) restartButton.style.display = "none";
+    // Скрываем кнопки управления при возврате в меню
+    if (controllsDOM) controllsDOM.style.display = "none";
     if (lastScoreDOM) lastScoreDOM.textContent = "";
     lastScoreValue = null;
     // Сброс индекса персонажа для навигации с пульта
@@ -1358,6 +1361,8 @@ if (startButtonDOM) {
     scoreDOM.style.visibility = "visible";
     counterDOM.innerHTML = 0;
     if (restartButton) restartButton.style.display = "block";
+    // Показываем кнопки управления при начале игры
+    if (controllsDOM) controllsDOM.style.display = "flex";
     // Сброс флага звука окончания игры для новой игры
     gameOverSoundPlayed = false;
     // Остановка звука окончания игры (если он еще играет)
@@ -1391,6 +1396,8 @@ if (restartButton) {
     startDOM.style.visibility = "visible";
     scoreDOM.style.visibility = "hidden";
     restartButton.style.display = "none";
+    // Скрываем кнопки управления при возврате в меню
+    if (controllsDOM) controllsDOM.style.display = "none";
     if (lastScoreDOM) lastScoreDOM.textContent = "";
     lastScoreValue = null;
     // Сброс индекса персонажа для навигации с пульта
@@ -1782,6 +1789,8 @@ function animate(timestamp) {
         stepStartTimestamp = null;
         startMoving = false;
         if (restartButton) restartButton.style.display = "none";
+        // Скрываем кнопки управления при окончании игры
+        if (controllsDOM) controllsDOM.style.display = "none";
         // Воспроизведение звука окончания игры (только один раз)
         if (!gameOverSoundPlayed && soundEnabled && gameOverSound) {
           gameOverSound.play();
