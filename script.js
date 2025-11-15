@@ -18,6 +18,7 @@ const SECONDARY_LANGUAGE = "en";
 
 const translations = {
   ru: {
+    gameTitle: "Отважные животные",
     scoreLabel: "Счёт:",
     startButton: "Старт",
     restartButton: "Заново",
@@ -32,6 +33,7 @@ const translations = {
     }
   },
   en: {
+    gameTitle: "Brave Animals",
     scoreLabel: "Score:",
     startButton: "Start",
     restartButton: "Restart",
@@ -112,6 +114,20 @@ function translateCharacterTitle(characterKey) {
 }
 
 function applyTranslations() {
+  // Обновляем title страницы
+  const gameTitle = translate("gameTitle");
+  if (gameTitle && document) {
+    document.title = gameTitle;
+  }
+  
+  // Обновляем заголовок h1
+  if (startDOM) {
+    const h1Element = startDOM.querySelector("h1");
+    if (h1Element && gameTitle) {
+      h1Element.textContent = gameTitle;
+    }
+  }
+  
   if (scoreLabelDOM) {
     const scoreLabel = translate("scoreLabel");
     if (scoreLabel) {
@@ -403,6 +419,36 @@ class SoundSource {
       return;
     }
     
+    // Проверяем, не был ли запрошен останов перед созданием источника
+    if (this.shouldStop) {
+      console.log(`[SoundSource:${this.name}] Остановка запрошена, воспроизведение отменено`);
+      return;
+    }
+    
+    // ПРИОРИТЕТ: Если источник все еще существует, останавливаем его перед созданием нового
+    // Это должно быть проверено ПЕРЕД проверкой isPlaying, чтобы гарантировать очистку
+    if (this.source) {
+      console.log(`[SoundSource:${this.name}] Обнаружен существующий источник, останавливаем его`);
+      try {
+        this.shouldStop = true; // Устанавливаем флаг перед остановкой
+        this.source.onended = null; // Отключаем обработчик
+        if (this.gainNode) {
+          this.gainNode.disconnect(); // Отключаем gainNode
+        }
+        this.source.stop(); // Останавливаем источник
+        this.source = null; // Очищаем ссылку
+        this.gainNode = null; // Очищаем ссылку
+        this.isPlaying = false; // Сбрасываем флаг
+        console.log(`[SoundSource:${this.name}] Предыдущий источник остановлен и очищен`);
+      } catch (e) {
+        console.warn(`[SoundSource:${this.name}] Ошибка при остановке предыдущего источника:`, e);
+        // В любом случае очищаем ссылки
+        this.source = null;
+        this.gainNode = null;
+        this.isPlaying = false;
+      }
+    }
+    
     // Если звук уже играет и это зацикленный звук, не создаем новый источник
     if (this.isPlaying && this.loop) {
       console.log(`[SoundSource:${this.name}] Звук уже играет (loop), воспроизведение отменено`);
@@ -423,17 +469,10 @@ class SoundSource {
         });
       }
       
-      // Останавливаем предыдущий источник, если он есть
-      if (this.source && this.isPlaying) {
-        console.log(`[SoundSource:${this.name}] Останавливаем предыдущий источник перед запуском нового`);
-        try {
-          this.shouldStop = true; // Устанавливаем флаг перед остановкой
-          this.source.onended = null; // Отключаем обработчик
-          this.source.stop();
-          console.log(`[SoundSource:${this.name}] Предыдущий источник остановлен`);
-        } catch (e) {
-          console.warn(`[SoundSource:${this.name}] Ошибка при остановке предыдущего источника:`, e);
-        }
+      // Дополнительная проверка soundEnabled перед созданием источника
+      if (!soundEnabled) {
+        console.log(`[SoundSource:${this.name}] Звук отключен перед созданием источника, воспроизведение отменено`);
+        return;
       }
       
       // Создаем новый источник для каждого воспроизведения
@@ -492,11 +531,22 @@ class SoundSource {
     console.log(`[SoundSource:${this.name}] STOP вызван в ${timestamp}`, {
       isPlaying: this.isPlaying,
       hasSource: !!this.source,
+      hasGainNode: !!this.gainNode,
       shouldStop: this.shouldStop
     });
     
     // Устанавливаем флаг остановки
     this.shouldStop = true;
+    
+    // Отключаем gainNode от masterGainNode перед остановкой источника
+    if (this.gainNode && masterGainNode) {
+      try {
+        this.gainNode.disconnect();
+        console.log(`[SoundSource:${this.name}] gainNode отключен от masterGainNode`);
+      } catch (error) {
+        console.warn(`[SoundSource:${this.name}] Ошибка при отключении gainNode:`, error);
+      }
+    }
     
     if (this.source) {
       try {
@@ -504,12 +554,18 @@ class SoundSource {
         this.source.onended = null;
         console.log(`[SoundSource:${this.name}] Обработчик onended отключен`);
         
-        // Останавливаем источник, если он еще играет
-        if (this.isPlaying) {
+        // Останавливаем источник независимо от состояния isPlaying
+        // Это гарантирует, что источник будет остановлен, даже если isPlaying = false
+        try {
           this.source.stop();
           console.log(`[SoundSource:${this.name}] Источник остановлен через stop()`);
-        } else {
-          console.log(`[SoundSource:${this.name}] Источник уже не играет (isPlaying = false)`);
+        } catch (stopError) {
+          // Если источник уже остановлен, это нормально
+          if (stopError.name !== 'InvalidStateError') {
+            console.warn(`[SoundSource:${this.name}] Ошибка при остановке источника:`, stopError);
+          } else {
+            console.log(`[SoundSource:${this.name}] Источник уже остановлен`);
+          }
         }
       } catch (error) {
         console.warn(`[SoundSource:${this.name}] Ошибка при остановке источника:`, error);
@@ -602,6 +658,7 @@ function startBackgroundMusic() {
 
 // Функция для включения/выключения всех звуков
 function toggleSound() {
+  // Переключаем состояние звука
   soundEnabled = !soundEnabled;
   
   if (soundEnabled) {
@@ -609,9 +666,38 @@ function toggleSound() {
     playIcon.style.display = "none";
     pauseIcon.style.display = "block";
     
-    // Возобновляем фоновую музыку и звук трафика, если игра начата
-    startBackgroundMusic();
-    if (gameStarted && trafficSound) {
+    // Восстанавливаем громкость через masterGainNode (мгновенное включение)
+    if (masterGainNode) {
+      masterGainNode.gain.value = 1.0;
+    } else if (audioContext) {
+      // Если masterGainNode еще не создан, создаем его
+      initAudioContext();
+      if (masterGainNode) {
+        masterGainNode.gain.value = 1.0;
+      }
+    }
+    
+    // Сбрасываем флаги shouldStop для всех звуков
+    if (backgroundMusic) {
+      backgroundMusic.shouldStop = false;
+    }
+    if (trafficSound) {
+      trafficSound.shouldStop = false;
+    }
+    if (jumpSound) {
+      jumpSound.shouldStop = false;
+    }
+    if (gameOverSound) {
+      gameOverSound.shouldStop = false;
+    }
+    
+    // Запускаем звуки только если они еще не играют
+    // Это предотвращает создание дублирующих источников
+    // Проверяем только isPlaying, так как источник может существовать, но быть отключен через masterGainNode
+    if (backgroundMusic && !backgroundMusic.isPlaying) {
+      startBackgroundMusic();
+    }
+    if (gameStarted && trafficSound && !trafficSound.isPlaying) {
       trafficSound.play();
     }
   } else {
@@ -619,11 +705,25 @@ function toggleSound() {
     playIcon.style.display = "block";
     pauseIcon.style.display = "none";
     
-    // Останавливаем все звуки
-    if (backgroundMusic) backgroundMusic.stop();
-    if (trafficSound) trafficSound.stop();
-    if (jumpSound) jumpSound.stop();
-    if (gameOverSound) gameOverSound.stop();
+    // Устанавливаем флаг shouldStop для всех звуков, чтобы предотвратить автоперезапуск
+    if (backgroundMusic) {
+      backgroundMusic.shouldStop = true;
+    }
+    if (trafficSound) {
+      trafficSound.shouldStop = true;
+    }
+    if (jumpSound) {
+      jumpSound.shouldStop = true;
+    }
+    if (gameOverSound) {
+      gameOverSound.shouldStop = true;
+    }
+    
+    // Отключаем звук через masterGainNode (мгновенное отключение без остановки источников)
+    // Это предотвращает создание новых источников при следующем включении
+    if (masterGainNode) {
+      masterGainNode.gain.value = 0.0;
+    }
   }
 }
 
