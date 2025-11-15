@@ -795,7 +795,7 @@ const truckLeftSideTexture = new Texture(25, 30, [
 ]);
 
 const generateLanes = () =>
-  [-11,-10,-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11]
+  [-11,-10,-9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13]
     .map((index) => {
       const lane = new Lane(index);
       lane.mesh.position.y = index * positionWidth * zoom;
@@ -1428,10 +1428,16 @@ if (retryButton) {
     }
     // Сброс флага звука окончания игры
     gameOverSoundPlayed = false;
-    // Остановка звука окончания игры
+    // Остановка всех звуков
     if (gameOverSound) gameOverSound.stop();
-    // Остановка звука трафика
     if (trafficSound) trafficSound.stop();
+    if (jumpSound) jumpSound.stop();
+    if (backgroundMusic) backgroundMusic.stop();
+    // Сбрасываем флаги shouldStop для всех звуков, чтобы они могли запуститься снова
+    if (backgroundMusic) backgroundMusic.shouldStop = false;
+    if (trafficSound) trafficSound.shouldStop = false;
+    if (jumpSound) jumpSound.shouldStop = false;
+    if (gameOverSound) gameOverSound.shouldStop = false;
     // Фоновая музыка продолжает играть на стартовом экране
     // Сбрасываем флаг, чтобы музыка могла запуститься снова
     musicStarted = false;
@@ -1474,6 +1480,11 @@ if (startButtonDOM) {
     gameOverSoundPlayed = false;
     // Остановка звука окончания игры (если он еще играет)
     if (gameOverSound) gameOverSound.stop();
+    // Сбрасываем флаги shouldStop для всех звуков, чтобы они могли запуститься
+    if (backgroundMusic) backgroundMusic.shouldStop = false;
+    if (trafficSound) trafficSound.shouldStop = false;
+    if (jumpSound) jumpSound.shouldStop = false;
+    if (gameOverSound) gameOverSound.shouldStop = false;
     // Фоновая музыка уже должна играть, но убеждаемся
     startBackgroundMusic();
     // Запуск звука трафика
@@ -1520,10 +1531,16 @@ if (restartButton) {
     }
     // Сброс флага звука окончания игры
     gameOverSoundPlayed = false;
-    // Остановка звука окончания игры
+    // Остановка всех звуков
     if (gameOverSound) gameOverSound.stop();
-    // Остановка звука трафика
     if (trafficSound) trafficSound.stop();
+    if (jumpSound) jumpSound.stop();
+    if (backgroundMusic) backgroundMusic.stop();
+    // Сбрасываем флаги shouldStop для всех звуков, чтобы они могли запуститься снова
+    if (backgroundMusic) backgroundMusic.shouldStop = false;
+    if (trafficSound) trafficSound.shouldStop = false;
+    if (jumpSound) jumpSound.shouldStop = false;
+    if (gameOverSound) gameOverSound.shouldStop = false;
     // Фоновая музыка продолжает играть на стартовом экране
     // Сбрасываем флаг, чтобы музыка могла запуститься снова
     musicStarted = false;
@@ -1910,6 +1927,8 @@ function animate(timestamp) {
         if (backgroundMusic) backgroundMusic.stop();
         // Остановка звука трафика при столкновении
         if (trafficSound) trafficSound.stop();
+        // Остановка звука прыжка при столкновении
+        if (jumpSound) jumpSound.stop();
       }
     });
   }
