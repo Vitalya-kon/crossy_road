@@ -222,6 +222,39 @@ let isTVDevice = false;
 let currentCharacterIndex = 0; // Индекс текущего выбранного персонажа для навигации с пульта
 let yandexSDK = null;
 let gameReadyCalled = false; // Флаг для отслеживания вызова GameReady API
+let gameplaySessionActive = false; // Флаг для отслеживания GameplayAPI
+
+function getGameplayAPI() {
+  return yandexSDK?.features?.GameplayAPI || null;
+}
+
+function notifyGameplayStart(reason = "default") {
+  const gameplayAPI = getGameplayAPI();
+  if (!gameplayAPI || gameplaySessionActive) {
+    return;
+  }
+  try {
+    gameplayAPI.start();
+    gameplaySessionActive = true;
+    console.log("[GameplayAPI] start()", { reason });
+  } catch (error) {
+    console.warn("[GameplayAPI] Ошибка при вызове start()", error);
+  }
+}
+
+function notifyGameplayStop(reason = "default") {
+  const gameplayAPI = getGameplayAPI();
+  if (!gameplayAPI || !gameplaySessionActive) {
+    return;
+  }
+  try {
+    gameplayAPI.stop();
+    gameplaySessionActive = false;
+    console.log("[GameplayAPI] stop()", { reason });
+  } catch (error) {
+    console.warn("[GameplayAPI] Ошибка при вызове stop()", error);
+  }
+}
 
 // Инициализация Яндекс Игр SDK
 if (typeof YaGames !== 'undefined') {
@@ -908,52 +941,78 @@ handleResize();
 
 // Предотвращение контекстного меню и выделения текста на сенсорных устройствах
 const canvas = renderer.domElement;
+function attachInteractionGuards(target) {
+  if (!target || typeof target.addEventListener !== "function") {
+    return;
+  }
 
-// Предотвращение контекстного меню при правом клике мыши (десктоп)
-canvas.addEventListener('contextmenu', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  return false;
-});
-
-// Дополнительная защита: блокировка правой кнопки мыши
-canvas.addEventListener('mousedown', (e) => {
-  if (e.button === 2) { // Правая кнопка мыши
-    e.preventDefault();
-    e.stopPropagation();
+  let touchStartTimestamp = 0;
+  const blockEvent = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     return false;
-  }
-});
+  };
 
-// Предотвращение выделения текста
-canvas.addEventListener('selectstart', (e) => {
-  e.preventDefault();
-  return false;
-});
+  target.addEventListener(
+    "contextmenu",
+    (event) => {
+      blockEvent(event);
+    },
+    { capture: true }
+  );
 
-// Предотвращение drag событий
-canvas.addEventListener('dragstart', (e) => {
-  e.preventDefault();
-  return false;
-});
+  target.addEventListener(
+    "selectstart",
+    (event) => {
+      blockEvent(event);
+    },
+    { capture: true }
+  );
 
-// Дополнительная защита для touch событий
-let touchStartTime = 0;
-canvas.addEventListener('touchstart', (e) => {
-  touchStartTime = Date.now();
-  // Разрешаем touch события, но предотвращаем стандартное поведение браузера
-  if (e.touches.length > 1) {
-    e.preventDefault(); // Предотвращаем зум при мультитаче
-  }
-}, { passive: false });
+  target.addEventListener(
+    "dragstart",
+    (event) => {
+      blockEvent(event);
+    },
+    { capture: true }
+  );
 
-canvas.addEventListener('touchend', (e) => {
-  // Предотвращаем контекстное меню только при длительном нажатии (более 500мс)
-  const touchDuration = Date.now() - touchStartTime;
-  if (touchDuration > 500) {
-    e.preventDefault();
-  }
-}, { passive: false });
+  target.addEventListener(
+    "mousedown",
+    (event) => {
+      if (event.button === 2) {
+        blockEvent(event);
+      }
+    },
+    { capture: true }
+  );
+
+  target.addEventListener(
+    "touchstart",
+    (event) => {
+      touchStartTimestamp = Date.now();
+      if (event.touches && event.touches.length > 1) {
+        blockEvent(event);
+      }
+    },
+    { passive: false, capture: true }
+  );
+
+  target.addEventListener(
+    "touchend",
+    (event) => {
+      const duration = Date.now() - touchStartTimestamp;
+      if (duration > 500) {
+        blockEvent(event);
+      }
+    },
+    { passive: false, capture: true }
+  );
+}
+
+attachInteractionGuards(canvas);
+attachInteractionGuards(document.body);
+attachInteractionGuards(document);
 
 function Texture(width, height, rects) {
   const canvas = document.createElement("canvas");
@@ -1408,6 +1467,7 @@ if (retryButton) {
     initaliseValues();
     endDOM.style.visibility = "hidden";
     gameStarted = false;
+    notifyGameplayStop("retry_to_menu");
     startDOM.style.visibility = "visible";
     scoreDOM.style.visibility = "hidden";
     if (restartButton) restartButton.style.display = "none";
@@ -1438,6 +1498,12 @@ if (retryButton) {
     if (trafficSound) trafficSound.shouldStop = false;
     if (jumpSound) jumpSound.shouldStop = false;
     if (gameOverSound) gameOverSound.shouldStop = false;
+    // Проверяем паузу звука перед запуском звуков
+    if (!soundEnabled) {
+      console.log("[Audio] Звук на паузе, звуки не запускаются");
+      return;
+    }
+    
     // Фоновая музыка продолжает играть на стартовом экране
     // Сбрасываем флаг, чтобы музыка могла запуститься снова
     musicStarted = false;
@@ -1470,6 +1536,7 @@ if (startButtonDOM) {
     }
     
     gameStarted = true;
+    notifyGameplayStart("user_start");
     startDOM.style.visibility = "hidden";
     scoreDOM.style.visibility = "visible";
     counterDOM.innerHTML = 0;
@@ -1485,14 +1552,19 @@ if (startButtonDOM) {
     if (trafficSound) trafficSound.shouldStop = false;
     if (jumpSound) jumpSound.shouldStop = false;
     if (gameOverSound) gameOverSound.shouldStop = false;
+    // Проверяем паузу звука перед запуском звуков
+    if (!soundEnabled) {
+      console.log("[Audio] Звук на паузе, звуки не запускаются");
+      return;
+    }
+    
     // Фоновая музыка уже должна играть, но убеждаемся
     startBackgroundMusic();
     // Запуск звука трафика
-    if (soundEnabled && trafficSound) {
+    if (trafficSound) {
       trafficSound.play();
     } else {
       console.warn("[Audio] trafficSound не воспроизведен:", {
-        soundEnabled,
         hasTrafficSound: !!trafficSound,
         audioContext: !!audioContext,
         audioBuffersLoaded,
@@ -1511,6 +1583,7 @@ if (restartButton) {
     initaliseValues();
     endDOM.style.visibility = "hidden";
     gameStarted = false;
+    notifyGameplayStop("restart_to_menu");
     startDOM.style.visibility = "visible";
     scoreDOM.style.visibility = "hidden";
     restartButton.style.display = "none";
@@ -1541,6 +1614,12 @@ if (restartButton) {
     if (trafficSound) trafficSound.shouldStop = false;
     if (jumpSound) jumpSound.shouldStop = false;
     if (gameOverSound) gameOverSound.shouldStop = false;
+    // Проверяем паузу звука перед запуском звуков
+    if (!soundEnabled) {
+      console.log("[Audio] Звук на паузе, звуки не запускаются");
+      return;
+    }
+    
     // Фоновая музыка продолжает играть на стартовом экране
     // Сбрасываем флаг, чтобы музыка могла запуститься снова
     musicStarted = false;
@@ -1764,11 +1843,14 @@ function move(direction) {
     if (!stepStartTimestamp) startMoving = true;
   }
   moves.push(direction);
-  // Воспроизведение звука прыжка
+  // Проверяем паузу звука перед воспроизведением звука прыжка
+  // Если пауза стоит - не воспроизводим звук, но движение все равно происходит
   if (soundEnabled && jumpSound) {
     jumpSound.play();
+  } else if (!soundEnabled) {
+    console.log("[Audio] Звук на паузе, звук прыжка не воспроизводится");
   } else {
-    console.warn("[Audio] jumpSound не воспроизведен:", { soundEnabled, hasJumpSound: !!jumpSound });
+    console.warn("[Audio] jumpSound не воспроизведен:", { hasJumpSound: !!jumpSound });
   }
 }
 
@@ -1909,6 +1991,7 @@ function animate(timestamp) {
         endDOM.style.visibility = "visible";
         // Block controls and stop any ongoing movement after collision
         gameStarted = false;
+        notifyGameplayStop("game_over_collision");
         moves = [];
         stepStartTimestamp = null;
         startMoving = false;
@@ -2180,6 +2263,10 @@ function handlePageVisibilityChange() {
   if (document.hidden || document.visibilityState === "hidden") {
     console.log(`[VisibilityChange] Страница скрыта - останавливаем звуки`);
     
+    if (gameStarted) {
+      notifyGameplayStop("page_hidden");
+    }
+    
     // Отменяем запланированное возобновление, если оно было
     if (resumeTimeout) {
       console.log(`[VisibilityChange] Отменяем запланированное возобновление`);
@@ -2227,10 +2314,26 @@ function handlePageVisibilityChange() {
   } else if (document.visibilityState === "visible") {
     console.log(`[VisibilityChange] Страница видна - возобновляем звуки`);
     
+    if (gameStarted) {
+      notifyGameplayStart("page_visible");
+    }
+    
     // Отменяем предыдущее запланированное возобновление
     if (resumeTimeout) {
       console.log(`[VisibilityChange] Отменяем предыдущее запланированное возобновление`);
       clearTimeout(resumeTimeout);
+    }
+    
+    // Если звук отключен, не возобновляем
+    if (!soundEnabled) {
+      console.log(`[VisibilityChange] Звук отключен, не возобновляем`);
+      return;
+    }
+    
+    // Инициализируем AudioContext, если он не существует
+    if (!audioContext) {
+      console.log(`[VisibilityChange] AudioContext не существует, инициализируем`);
+      initAudioContext();
     }
     
     // Возобновляем AudioContext при возврате на вкладку
@@ -2238,21 +2341,17 @@ function handlePageVisibilityChange() {
       console.log(`[VisibilityChange] Возобновляем AudioContext (текущее состояние: ${audioContext.state})`);
       audioContext.resume().then(() => {
         console.log(`[VisibilityChange] AudioContext возобновлен`);
-        // Возобновляем звуки при возврате на вкладку (если звук включен)
-        if (soundEnabled) {
-          resumeAllSounds();
-        } else {
-          console.log(`[VisibilityChange] Звук отключен, не возобновляем`);
-        }
+        // Возобновляем звуки при возврате на вкладку
+        resumeAllSounds();
       }).catch(err => {
         console.error("[VisibilityChange] Ошибка при возобновлении AudioContext:", err);
+        // Даже если произошла ошибка, пытаемся возобновить звуки
+        resumeAllSounds();
       });
-    } else if (soundEnabled) {
+    } else {
       console.log(`[VisibilityChange] AudioContext уже активен (состояние: ${audioContext?.state}), возобновляем звуки`);
       // Если AudioContext уже активен, просто возобновляем звуки
       resumeAllSounds();
-    } else {
-      console.log(`[VisibilityChange] Звук отключен, не возобновляем`);
     }
   }
 }
@@ -2264,6 +2363,10 @@ function handleWindowBlur() {
     isPausing: isPausing,
     hasResumeTimeout: !!resumeTimeout
   });
+  
+  if (gameStarted) {
+    notifyGameplayStop("window_blur");
+  }
   
   // Отменяем запланированное возобновление, если оно было
   if (resumeTimeout) {
@@ -2319,10 +2422,26 @@ function handleWindowFocus() {
     soundEnabled: soundEnabled
   });
   
+  if (gameStarted) {
+    notifyGameplayStart("window_focus");
+  }
+  
   // Отменяем предыдущее запланированное возобновление
   if (resumeTimeout) {
     console.log(`[WindowFocus] Отменяем предыдущее запланированное возобновление`);
     clearTimeout(resumeTimeout);
+  }
+  
+  // Если звук отключен, не возобновляем
+  if (!soundEnabled) {
+    console.log(`[WindowFocus] Звук отключен, не возобновляем`);
+    return;
+  }
+  
+  // Инициализируем AudioContext, если он не существует
+  if (!audioContext) {
+    console.log(`[WindowFocus] AudioContext не существует, инициализируем`);
+    initAudioContext();
   }
   
   // Возобновляем AudioContext при разворачивании окна
@@ -2330,21 +2449,17 @@ function handleWindowFocus() {
     console.log(`[WindowFocus] Возобновляем AudioContext (текущее состояние: ${audioContext.state})`);
     audioContext.resume().then(() => {
       console.log(`[WindowFocus] AudioContext возобновлен`);
-      // Возобновляем звуки при разворачивании окна (если звук включен)
-      if (soundEnabled) {
-        resumeAllSounds();
-      } else {
-        console.log(`[WindowFocus] Звук отключен, не возобновляем`);
-      }
+      // Возобновляем звуки при разворачивании окна
+      resumeAllSounds();
     }).catch(err => {
       console.error("[WindowFocus] Ошибка при возобновлении AudioContext:", err);
+      // Даже если произошла ошибка, пытаемся возобновить звуки
+      resumeAllSounds();
     });
-  } else if (soundEnabled) {
+  } else {
     console.log(`[WindowFocus] AudioContext уже активен (состояние: ${audioContext?.state}), возобновляем звуки`);
     // Если AudioContext уже активен, просто возобновляем звуки
     resumeAllSounds();
-  } else {
-    console.log(`[WindowFocus] Звук отключен, не возобновляем`);
   }
 }
 
@@ -2450,6 +2565,12 @@ function resumeAllSounds() {
     hasResumeTimeout: !!resumeTimeout
   });
   
+  // Если звук отключен, не возобновляем
+  if (!soundEnabled) {
+    console.log(`[resumeAllSounds] Звук отключен, не возобновляем`);
+    return;
+  }
+  
   // Отменяем предыдущее запланированное возобновление, если оно было
   if (resumeTimeout) {
     console.log(`[resumeAllSounds] Отменяем предыдущее запланированное возобновление`);
@@ -2461,6 +2582,23 @@ function resumeAllSounds() {
   resumeTimeout = setTimeout(() => {
     resumeTimeout = null;
     console.log(`[resumeAllSounds] Выполняем возобновление через 150ms`);
+    
+    // Проверяем, что AudioContext существует и активен
+    if (!audioContext) {
+      console.warn(`[resumeAllSounds] AudioContext не существует, инициализируем`);
+      initAudioContext();
+    }
+    
+    // Проверяем, что звуки инициализированы
+    if (!backgroundMusic || !trafficSound || !jumpSound || !gameOverSound) {
+      console.warn(`[resumeAllSounds] Некоторые звуки не инициализированы, пытаемся инициализировать`);
+      if (audioBuffersLoaded) {
+        initSounds();
+      } else {
+        console.warn(`[resumeAllSounds] Буферы звуков еще не загружены, не можем восстановить звуки`);
+        return;
+      }
+    }
     
     // Проверяем состояние звуков перед возобновлением
     const stateBeforeResume = {
@@ -2487,30 +2625,42 @@ function resumeAllSounds() {
       trafficSound.stop();
     }
     
+    // Сбрасываем флаги shouldStop для всех звуков перед возобновлением
+    if (backgroundMusic) {
+      backgroundMusic.shouldStop = false;
+    }
+    if (trafficSound) {
+      trafficSound.shouldStop = false;
+    }
+    if (jumpSound) {
+      jumpSound.shouldStop = false;
+    }
+    if (gameOverSound) {
+      gameOverSound.shouldStop = false;
+    }
+    
     // Возобновляем фоновую музыку (если звук включен)
-    // Фоновая музыка должна играть всегда, когда звук включен
-    if (soundEnabled && backgroundMusic && !backgroundMusic.isPlaying) {
+    // Фоновая музыка должна играть всегда, когда звук включен, независимо от того, играла ли она до этого
+    if (backgroundMusic && !backgroundMusic.isPlaying) {
       console.log(`[resumeAllSounds] Возобновляем backgroundMusic`);
       backgroundMusic.play();
     } else {
       console.log(`[resumeAllSounds] backgroundMusic не возобновляем:`, {
-        soundEnabled: soundEnabled,
         hasBackgroundMusic: !!backgroundMusic,
         isPlaying: backgroundMusic?.isPlaying
       });
     }
     
-    // Возобновляем звук трафика, если игра запущена и он играл (если звук включен)
-    if (gameStarted && soundEnabled && trafficSound && !trafficSound.isPlaying && wasTrafficSoundPlaying) {
-      console.log(`[resumeAllSounds] Возобновляем trafficSound`);
+    // Возобновляем звук трафика, если игра запущена (если звук включен)
+    // Восстанавливаем звук трафика, если игра была запущена, независимо от флага wasTrafficSoundPlaying
+    if (gameStarted && trafficSound && !trafficSound.isPlaying) {
+      console.log(`[resumeAllSounds] Возобновляем trafficSound (игра запущена)`);
       trafficSound.play();
     } else {
       console.log(`[resumeAllSounds] trafficSound не возобновляем:`, {
         gameStarted: gameStarted,
-        soundEnabled: soundEnabled,
         hasTrafficSound: !!trafficSound,
-        isPlaying: trafficSound?.isPlaying,
-        wasTrafficSoundPlaying: wasTrafficSoundPlaying
+        isPlaying: trafficSound?.isPlaying
       });
     }
   }, 150);
